@@ -14,7 +14,7 @@ volatile unsigned int altValue = 0;
 volatile unsigned int spdValue = 0;
 
 // Nazwa samolotu
-String currentAircraft = "NONE";
+String currentAircraft = "";
 
 // --- CALLBACKI ---
 void onAcftNameChange(char* newValue) {
@@ -65,21 +65,32 @@ void drawCommonData() {
 
   char buf[8];
   u8g2.setFont(u8g2_font_logisoso28_tr);
+  snprintf(buf, sizeof(buf), "%03u", hdgValue);   u8g2.setCursor(2, 60);   u8g2.print(buf);
+  snprintf(buf, sizeof(buf), "%05u", altValue);  u8g2.setCursor(80, 60);  u8g2.print(buf);
+  snprintf(buf, sizeof(buf), "%03u", spdValue);  u8g2.setCursor(200, 60); u8g2.print(buf);
+  u8g2.sendBuffer();
+}
 
-  snprintf(buf, sizeof(buf), "%03u", hdgValue);
-  u8g2.setCursor(2, 60); u8g2.print(buf);
+// --- RYSOWANIE EKRANU OCZEKIWANIA ---
+void drawWaitingScreen() {
+  u8g2.setFont(Hornet_UFC);
+  u8g2.clearBuffer();
+  u8g2.drawRFrame(4,2,251,61,4);
+  u8g2.drawRFrame(5,3,249,59,4);
+  u8g2.drawRFrame(6,4,247,57,4);
+int textWidth = u8g2.getStrWidth("SIM TEES");
+int fontHeight = u8g2.getMaxCharHeight();
 
-  snprintf(buf, sizeof(buf), "%05u", altValue);
-  u8g2.setCursor(80, 60); u8g2.print(buf);
+int x = (256 - textWidth) / 2;
+int y = (64 + fontHeight) / 2;
 
-  snprintf(buf, sizeof(buf), "%03u", spdValue);
-  u8g2.setCursor(200, 60); u8g2.print(buf);
-
+u8g2.setCursor(x, y);
+u8g2.print("SIM TEES");
   u8g2.sendBuffer();
 }
 
 // --- MASTER CAUTION LED (pin 16) dla różnych samolotów ---
-DcsBios::LED pltMasterCautionL(0x0000, 0x0000, 16); // AH-64D (przykład, adresy wg Twojego kodu)
+DcsBios::LED pltMasterCautionL(0x0000, 0x0000, 16); // AH-64D
 DcsBios::LED masterCautionLt(0x7408, 0x0200, 16);   // F-18C
 DcsBios::LED masterCaution(0x1012, 0x0800, 16);     // A-10C
 DcsBios::LED pltMasterCaution(0x12d4, 0x0080, 16);  // F-14B
@@ -87,6 +98,7 @@ DcsBios::LED fMasterCautionL(0x959e, 0x4000, 16);   // F-15E
 DcsBios::LED mcLight(0x7602, 0x0020, 16);           // F-5E
 DcsBios::LED warnLMaster(0x485a, 0x0008, 16);       // JF-17A
 DcsBios::LED pltWcaMasterCaution(0x2af8, 0x0001, 16); // F-4E
+DcsBios::LED lightMasterCaution(0x447a, 0x0001, 16); // F-16C
 
 // --- SETUP/LOOP ---
 void setup() {
@@ -103,10 +115,11 @@ void loop() {
   if (millis() - lastUpdate > 100) {
     lastUpdate = millis();
 
-    if (currentAircraft == "FA-18C_hornet") {
+    if (currentAircraft == "") {
+      drawWaitingScreen();
+    } else if (currentAircraft == "FA-18C_hornet") {
       // Tryb UFC Horneta – rysowanie odbywa się w updateComDisplay()
     } else {
-      // Tryb Common Data
       drawCommonData();
     }
   }
