@@ -80,3 +80,21 @@ void loop() {
     drawDisplay();
   }
 }
+
+
+
+
+
+//master caution
+DcsBios::LED pltMasterCautionL(AH_64D_PLT_MASTER_CAUTION_L_AM, 16); //AH-64D
+DcsBios::LED masterCautionLt(0x7408, 0x0200, 16); //F-18C
+DcsBios::LED masterCaution(0x1012, 0x0800, 16); //A-10C
+DcsBios::LED pltMasterCaution(0x12d4, 0x0080,16); //F-14B
+DcsBios::LED fMasterCautionL(0x959e, 0x4000, 16); //F-15E
+DcsBios::LED mcLight(0x7602, 0x0020, 16); //F-5E
+DcsBios::LED warnLMaster(0x485a, 0x0008, 16); //JF-17A
+//DcsBios::LED mcAmbre(0x72b0, 0x0001, 16); //M-2000C UPPER AMBER MASTER CAUTION LIGHT
+//DcsBios::LED mcRouge(0x72b0, 0x0002, 16); //M-2000C LOWER RED MASTER CAUTION LIGHT
+//DcsBios::LED pWlMFailLL(0x86b4, 0x0040, 16); //MIRAGE F1 LEFT WING MASTER FAIL LIGHT
+//DcsBios::LED pWlMFailRL(0x86b4, 0x0080, 16); //MIRAGE F1 RIGHT WING MASTER FAIL LIGHT
+DcsBios::LED pltWcaMasterCaution(0x2af8, 0x0001, 16); //F-4E
