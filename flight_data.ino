@@ -4,97 +4,79 @@
 #define DCSBIOS_DEFAULT_SERIAL
 #include "DcsBios.h"
 
-// Konfiguracja wyświetlacza
+// Konfiguracja wyświetlacza SH1122 256x64
 U8G2_SH1122_256X64_F_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/ 15, /* dc=*/ 5, /* reset=*/ 4);
 
-// Zmienne globalne
-String comDisplay[3] = {"", "", ""};  // Domyślne wartości
-char spdSign = '=';                  // Domyślny znak dla prędkości
-unsigned int prevIasValue = 0;       // Poprzednia wartość prędkości
+// Bufory na dane (globalne, aktualizowane w callbackach)
+volatile unsigned int hdgValue = 0;
+volatile unsigned int altValue = 0;
+volatile unsigned int spdValue = 0;
 
-// Funkcja setup
-void setup() {
-    u8g2.begin();
-    u8g2.setBusClock(10000000);
-
-    DcsBios::setup();
-}
-
-// Funkcja loop
-void loop() {
-    DcsBios::loop();
-}
-
-// Funkcja aktualizacji wyświetlacza
-void updateComDisplay(int changed, const String& newValue) {
-    comDisplay[changed] = newValue;
-
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_10x20_mr); // Czcionka dla nagłówków
-
-    // Wyświetlanie nagłówków
-    u8g2.setCursor(12, 18);
-    u8g2.print("HDG");
-    u8g2.setCursor(110, 18);
-    u8g2.print("ALT");
-
-    // Wyświetlanie SPD z odpowiednim znakiem
-    if (spdSign == '+') {
-        u8g2.setCursor(180, 18); // Znak "+" po lewej stronie SPD
-        u8g2.print("+");
-        u8g2.setCursor(210, 18);
-        u8g2.print("SPD");
-    } else if (spdSign == '-') {
-        u8g2.setCursor(210, 18);
-        u8g2.print("SPD");
-        u8g2.setCursor(250, 18); // Znak "-" po prawej stronie SPD
-        u8g2.print("-");
-    } else if (spdSign == '=') {
-        // Filtr dla znaku '='
-        u8g2.setCursor(180, 18); // Znak "=" po lewej stronie SPD
-        u8g2.print("=");
-        u8g2.setCursor(210, 18);
-        u8g2.print("SPD");
-        u8g2.setCursor(250, 18); // Znak "=" po prawej stronie SPD
-        u8g2.print("=");
-    }
-
-    // Wyświetlanie wartości
-    u8g2.setFont(u8g2_font_logisoso28_tr); // Czcionka dla danych
-    u8g2.setCursor(2, 60);
-    u8g2.print(comDisplay[0]);
-    u8g2.setCursor(80, 60);
-    u8g2.print(comDisplay[1]);
-    u8g2.setCursor(200, 60);
-    u8g2.print(comDisplay[2]);
-
-    u8g2.sendBuffer();
-}
-
-// Obsługa zmiany kierunku
+// Callbacki – tylko zapisują wartości
 void onHdgDegChange(unsigned int newValue) {
-    updateComDisplay(0, String(newValue));
+  hdgValue = newValue % 360; // heading 0–359
 }
 DcsBios::IntegerBuffer hdgDegBuffer(0x0436, 0x01ff, 0, onHdgDegChange);
 
-// Obsługa zmiany wysokości
 void onAltMslFtChange(unsigned int newValue) {
-    updateComDisplay(1, String(newValue));
+  altValue = newValue; // wysokość w stopach
 }
 DcsBios::IntegerBuffer altMslFtBuffer(0x0434, 0xffff, 0, onAltMslFtChange);
 
-// Obsługa zmiany prędkości
 void onIasUsIntChange(unsigned int newValue) {
-    // Określenie znaku zmiany prędkości
-    if (newValue > prevIasValue) {
-        spdSign = '+'; // Prędkość wzrasta
-    } else if (newValue < prevIasValue) {
-        spdSign = '-'; // Prędkość spada
-    } else {
-        spdSign = '='; // Prędkość stała
-    }
-    prevIasValue = newValue; // Aktualizacja poprzedniej wartości prędkości
-
-    updateComDisplay(2, String(newValue));
+  spdValue = newValue; // prędkość IAS
 }
 DcsBios::IntegerBuffer iasUsIntBuffer(0x042e, 0xffff, 0, onIasUsIntChange);
+
+// Funkcja rysująca ekran
+void drawDisplay() {
+  u8g2.clearBuffer();
+
+  // Nagłówki
+  u8g2.setFont(u8g2_font_10x20_mr);
+  u8g2.setCursor(12, 18);
+  u8g2.print("HDG");
+  u8g2.setCursor(110, 18);
+  u8g2.print("ALT");
+  u8g2.setCursor(210, 18);
+  u8g2.print("SPD");
+
+  // Formatowanie wartości
+  char buf[8];
+
+  u8g2.setFont(u8g2_font_logisoso28_tr);
+
+  // HDG – 3 cyfry
+  snprintf(buf, sizeof(buf), "%03u", hdgValue);
+  u8g2.setCursor(2, 60);
+  u8g2.print(buf);
+
+  // ALT – 5 cyfr
+  snprintf(buf, sizeof(buf), "%05u", altValue);
+  u8g2.setCursor(80, 60);
+  u8g2.print(buf);
+
+  // SPD – 3 cyfry
+  snprintf(buf, sizeof(buf), "%03u", spdValue);
+  u8g2.setCursor(200, 60);
+  u8g2.print(buf);
+
+  u8g2.sendBuffer();
+}
+
+void setup() {
+  u8g2.begin();
+  u8g2.setBusClock(10000000);
+  DcsBios::setup();
+}
+
+void loop() {
+  DcsBios::loop();
+
+  // Odświeżanie ekranu co 100 ms
+  static unsigned long lastUpdate = 0;
+  if (millis() - lastUpdate > 100) {
+    lastUpdate = millis();
+    drawDisplay();
+  }
+}
